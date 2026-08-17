@@ -1,0 +1,33 @@
+# === Python ===
+# 字节码缓存（Python 自动生成，无需上传）
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 编译缓存/构建产物
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter Notebook 检查点
+.ipynb_checkpoints/
+
+# === IDE / 编辑器 ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === 操作系统 ===
+.DS_Store
+Thumbs.db
+
+# === 数据 / 生成文件 ===
+# 模型训练生成的临时数据、缓存等（根据实际情况按需保留/排除）
