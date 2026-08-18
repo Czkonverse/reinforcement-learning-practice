@@ -1,4 +1,4 @@
-from envs.gridworld import GridWorld
+from envs.grid_world import GridWorld
 from agents.random_agent import RandomAgent
 
 if __name__ == "__main__":

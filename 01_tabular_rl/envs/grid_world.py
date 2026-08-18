@@ -1,30 +1,33 @@
-import numpy as np
-
 # 地图大小：5 × 5
-# . . . . .
-# . . . . .
-# . . . . .
-# . . . . .
-# S X X X G
+# S . . # .
+# . # . # .
+# . # . . .
+# . . # # .
+# . . . . G
 
 
-class CliffWorld:
+class GridWorld:
     def __init__(self):
         # start and end point
-        self.start = (4, 0)
+        self.start = (0, 0)
         self.goal = (4, 4)
 
         # boundary
         self.rows = 5
         self.cols = 5
 
-        # cliffs
-        self.cliffs = {(4, 1), (4, 2), (4, 3)}
+        # walls
+        self.walls = {(0, 3), (1, 1), (1, 3), (2, 1), (3, 2), (3, 3)}
 
         # agent position
         self.agent_pos = self.start
 
+        # acitons numbers
+        self.num_acitons = 4
+
     def reset(self):
+        # reset the enviroment
+        # agent returns to the start point
         self.agent_pos = self.start
 
         return self.agent_pos
@@ -47,31 +50,40 @@ class CliffWorld:
             raise ValueError(f"Input action is: {action}, invalid.")
 
         # special case
-        done = False
-
         # case 1: Out of boundary
+        out_of_bounds = False
         if (
             new_pos[0] < 0
             or new_pos[0] >= self.rows
             or new_pos[1] < 0
             or new_pos[1] >= self.cols
         ):
+            out_of_bounds = True
+
+        # special case 2: Against the wall
+        against_wall = False
+        if new_pos in self.walls:
+            against_wall = True
+
+        # update agent position
+        if out_of_bounds or against_wall:
             self.agent_pos = (row, col)
-            reward = -1
-
-        # case 2: arrival goal
-        elif new_pos == self.goal:
-            self.agent_pos = new_pos
-            reward = -1
-            done = True
-
-        # case 3: get into cliff
-        elif new_pos in self.cliffs:
-            self.agent_pos = self.start
-            reward = -100
         else:
             self.agent_pos = new_pos
-            reward = -1
+
+        # reward
+        # out of boundary & against the wall : -5
+        # normally move : -1
+        # arrival : +100
+        done = False
+        if out_of_bounds or against_wall:
+            reward = -5
+        else:
+            if self.agent_pos == self.goal:
+                reward = 100
+                done = True
+            else:
+                reward = -1
 
         return self.agent_pos, reward, done
 
@@ -83,9 +95,9 @@ class CliffWorld:
                 # agent
                 if pos_tmp == self.agent_pos:
                     grid += " A"
-                # cliff
-                elif pos_tmp in self.cliffs:
-                    grid += " X"
+                # wall
+                elif pos_tmp in self.walls:
+                    grid += " #"
                 # start
                 elif pos_tmp == self.start:
                     grid += " S"
@@ -104,28 +116,29 @@ class CliffWorld:
 
 if __name__ == "__main__":
     print("Start.... \n")
-    env = CliffWorld()
-    env.agent_pos = (3, 2)
+    env = GridWorld()
+    env.reset()
     state, reward, done = env.step(3)
     print(state, reward, done, "\n\n")
-    # env.render()
+    env.render()
 
-    env.agent_pos = (3, 2)
-    state, reward, done = env.step(1)
-    print(state, reward, done, "\n\n")
-    # env.render()
-
-    env.agent_pos = (3, 4)
-    state, reward, done = env.step(1)
-    print(state, reward, done, "\n\n")
-    # env.render()
-
-    env.agent_pos = (4, 0)
-    state, reward, done = env.step(3)
-    print(state, reward, done, "\n\n")
-    # env.render()
-
-    env.agent_pos = (0, 0)
+    print("Reset \n")
+    env.reset()
     state, reward, done = env.step(0)
     print(state, reward, done, "\n\n")
-    # env.render()
+    env.render()
+
+    print("Reset \n")
+    env.reset()
+    state, reward, done = env.step(3)
+    print(state, reward, done, "\n\n")
+    state, reward, done = env.step(1)
+    print(state, reward, done, "\n\n")
+    env.render()
+
+    print("Reset \n")
+    env.reset()
+    env.agent_pos = (4, 3)
+    state, reward, done = env.step(3)
+    print(state, reward, done, "\n\n")
+    env.render()

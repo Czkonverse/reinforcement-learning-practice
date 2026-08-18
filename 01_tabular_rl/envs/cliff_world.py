@@ -1,28 +1,41 @@
 import numpy as np
 
-# 地图大小：5 × 5
-# . . . . .
-# . . . . .
-# . . . . .
-# . . . . .
-# S X X X G
+# 地图大小：4 × 12
+# . . . . . . . . . . . .
+# . . . . . . . . . . . .
+# . . . . . . . . . . . .
+# S X X X X X X X X X X G
 
 
 class CliffWorld:
     def __init__(self):
         # start and end point
-        self.start = (4, 0)
-        self.goal = (4, 4)
+        self.start = (3, 0)
+        self.goal = (3, 11)
 
         # boundary
-        self.rows = 5
-        self.cols = 5
+        self.rows = 4
+        self.cols = 12
 
         # cliffs
-        self.cliffs = {(4, 1), (4, 2), (4, 3)}
+        self.cliffs = {
+            (3, 1),
+            (3, 2),
+            (3, 3),
+            (3, 4),
+            (3, 5),
+            (3, 6),
+            (3, 7),
+            (3, 8),
+            (3, 9),
+            (3, 10),
+        }
 
         # agent position
         self.agent_pos = self.start
+
+        # acitons numbers
+        self.num_acitons = 4
 
     def reset(self):
         self.agent_pos = self.start
@@ -105,22 +118,22 @@ class CliffWorld:
 if __name__ == "__main__":
     print("Start.... \n")
     env = CliffWorld()
-    env.agent_pos = (3, 2)
+    env.agent_pos = (2, 2)
     state, reward, done = env.step(3)
     print(state, reward, done, "\n\n")
     # env.render()
 
-    env.agent_pos = (3, 2)
+    env.agent_pos = (2, 2)
     state, reward, done = env.step(1)
     print(state, reward, done, "\n\n")
     # env.render()
 
-    env.agent_pos = (3, 4)
+    env.agent_pos = (2, 11)
     state, reward, done = env.step(1)
     print(state, reward, done, "\n\n")
     # env.render()
 
-    env.agent_pos = (4, 0)
+    env.agent_pos = (3, 0)
     state, reward, done = env.step(3)
     print(state, reward, done, "\n\n")
     # env.render()

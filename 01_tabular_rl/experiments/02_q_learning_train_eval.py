@@ -1,44 +1,31 @@
 import os
-import random
 import numpy as np
-from envs.gridworld import GridWorld
+from envs.grid_world import GridWorld
+from agents.q_learning_agent import QLearningAgent
 import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def greedy_action(q_table, state):
-    row, col = state
-    q_values = q_table[row, col]
-
-    max_q = np.max(q_values)
-    best_actions = np.flatnonzero(q_values == max_q)
-
-    return np.random.choice(best_actions)
-
-
-def evaluate(env, q_table, max_step):
+def evaluate(env, agent, max_step):
     state = env.reset()
 
     total_rewards = 0
     for step in range(max_step):
 
-        action = greedy_action(q_table, state)
-        new_state, reward, done = env.step(action)
+        action = agent.select_action(state, training=False)
+        next_state, reward, done = env.step(action)
 
         total_rewards += reward
 
         if done:
             return done, step + 1, total_rewards
 
-        state = new_state
+        state = next_state
 
     return False, max_step, total_rewards
 
 
 if __name__ == "__main__":
-    env = GridWorld()
-    test_env = GridWorld()
-
     alpha = 0.1
     gamma = 0.9
     epsilon = 0.2
@@ -46,9 +33,12 @@ if __name__ == "__main__":
     num_episodes = 100
     eval_interval = 2
 
-    # q-table
-    q_table = np.zeros((env.rows, env.cols, 4))
+    env = GridWorld()
+    state_shape = (env.rows, env.cols)
+    num_actions = env.num_acitons
+    agent = QLearningAgent(state_shape, num_actions, alpha, gamma, epsilon)
 
+    # stats
     episode_rewards = []
     episode_steps = []
     episode_success = []
@@ -64,43 +54,29 @@ if __name__ == "__main__":
         for step in range(max_step):
             row, col = state
 
-            # epsilon-greedy
-            random_value = random.random()
-            if random_value < epsilon:
-                action = random.randint(0, 3)
-            else:
-                action = greedy_action(q_table, state)
+            action = agent.select_action(state)
 
             # execute action
-            new_state, reward, done = env.step(action)
-            old_q = q_table[row, col, action]
-
+            next_state, reward, done = env.step(action)
             total_reward += reward
-            # if agent arrive at Goal, game over, reward is target
-            # if not, game continue
-            if done:
-                target = reward
-            else:
-                next_row, next_col = new_state
-                best_future_q = np.max(q_table[next_row, next_col])
-                target = reward + gamma * best_future_q
-            new_q = old_q + alpha * (target - old_q)
-            q_table[row, col, action] = new_q
+
+            agent.update(state, action, reward, next_state, done)
 
             if done:
                 episode_steps.append(step + 1)
                 break
 
-            state = new_state
+            state = next_state
 
         episode_rewards.append(total_reward)
         if not done:
             episode_steps.append(max_step)
         episode_success.append(done)
 
+        test_env = GridWorld()
         if (episode + 1) % eval_interval == 0:
             eval_done, eval_steps, eval_total_rewards = evaluate(
-                test_env, q_table, max_step
+                test_env, agent, max_step
             )
             episode_rewards_eval.append(eval_total_rewards)
             episode_steps_eval.append(eval_steps)
@@ -220,11 +196,3 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
-    # ==================== 绘图结束 ====================
-
-    # save q-table to resource folder (create it if not exists)
-
-    # save q-table to resource folder (create it if not exists)
-    save_dir = os.path.join(os.path.dirname(__file__), "resource")
-    os.makedirs(save_dir, exist_ok=True)
-    np.save(os.path.join(save_dir, "q_table.npy"), q_table)
