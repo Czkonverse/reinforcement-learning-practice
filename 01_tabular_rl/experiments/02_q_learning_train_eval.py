@@ -6,11 +6,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def evaluate(env, agent, max_step):
+def evaluate(env, agent, max_steps):
     state = env.reset()
 
     total_rewards = 0
-    for step in range(max_step):
+    for step in range(max_steps):
 
         action = agent.select_action(state, training=False)
         next_state, reward, done = env.step(action)
@@ -22,14 +22,14 @@ def evaluate(env, agent, max_step):
 
         state = next_state
 
-    return False, max_step, total_rewards
+    return False, max_steps, total_rewards
 
 
 if __name__ == "__main__":
     alpha = 0.1
     gamma = 0.9
     epsilon = 0.2
-    max_step = 80
+    max_steps = 80
     num_episodes = 100
     eval_interval = 2
 
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     agent = QLearningAgent(state_shape, num_actions, alpha, gamma, epsilon)
 
     # stats
-    episode_rewards = []
     episode_steps = []
+    episode_rewards = []
     episode_success = []
 
     episode_rewards_eval = []
@@ -49,16 +49,16 @@ if __name__ == "__main__":
 
     for episode in range(num_episodes):
         state = env.reset()
-        total_reward = 0
+        total_rewards = 0
         done = False
-        for step in range(max_step):
+        for step in range(max_steps):
             row, col = state
 
             action = agent.select_action(state)
 
             # execute action
             next_state, reward, done = env.step(action)
-            total_reward += reward
+            total_rewards += reward
 
             agent.update(state, action, reward, next_state, done)
 
@@ -68,15 +68,15 @@ if __name__ == "__main__":
 
             state = next_state
 
-        episode_rewards.append(total_reward)
         if not done:
-            episode_steps.append(max_step)
+            episode_steps.append(max_steps)
+        episode_rewards.append(total_rewards)
         episode_success.append(done)
 
         test_env = GridWorld()
         if (episode + 1) % eval_interval == 0:
             eval_done, eval_steps, eval_total_rewards = evaluate(
-                test_env, agent, max_step
+                test_env, agent, max_steps
             )
             episode_rewards_eval.append(eval_total_rewards)
             episode_steps_eval.append(eval_steps)
@@ -123,11 +123,11 @@ if __name__ == "__main__":
     # 2) 训练 steps（到达目标或打满 max_step）
     sns.lineplot(x=episodes, y=episode_steps, ax=axes[1], color="tab:blue")
     axes[1].axhline(
-        max_step,
+        max_steps,
         color="gray",
         linestyle="--",
         linewidth=1,
-        label=f"max_step={max_step}",
+        label=f"max_step={max_steps}",
     )
     axes[1].set_title("Steps per Episode")
     axes[1].set_xlabel("Episode")
@@ -171,11 +171,11 @@ if __name__ == "__main__":
         marker="o",
     )
     axes2[1].axhline(
-        max_step,
+        max_steps,
         color="gray",
         linestyle="--",
         linewidth=1,
-        label=f"max_step={max_step}",
+        label=f"max_step={max_steps}",
     )
     axes2[1].set_title("Evaluation Steps")
     axes2[1].set_xlabel("Episode")

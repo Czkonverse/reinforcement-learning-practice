@@ -35,7 +35,7 @@ class CliffWorld:
         self.agent_pos = self.start
 
         # acitons numbers
-        self.num_acitons = 4
+        self.num_actions = 4
 
     def reset(self):
         self.agent_pos = self.start
