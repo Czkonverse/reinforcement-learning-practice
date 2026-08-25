@@ -47,30 +47,48 @@ if __name__ == "__main__":
             next_action = agent.select_action(next_state)
             actions.append(next_action)
 
+        # update
         tau = step - n + 1
-        if tau >= 0:
-            if not done:
-                old_state = states[tau]
-                old_action = actions[tau]
-                old_q = agent.q_table[old_state][old_action]
+        G = 0
 
-                G = 0
-                for i in range(tau, tau + n):
-                    G = G + gamma ** (i - tau) * rewards[i]
-                G = G + gamma**n * agent.q_table[next_state][next_action]
+        # 1 tau<0, done=False, no update;
+        # 2 tau<0, done=True, flush;
+        # 3 tau>=0, done=False, update;
+        # 3 tau>=0, done=True, flush;
+        if tau >= 0 and not done:
+            old_state = states[tau]
+            old_action = actions[tau]
+            old_q = agent.q_table[old_state][old_action]
 
-                new_q = old_q + alpha * (G - old_q)
-                agent.q_table[old_state][old_action] = new_q
-            else:
-                G = 0
-                for i in range(tau, n + 1):
-                    state = states[i]
-                    action = actions[i]
+            for i in range(tau, tau + n):
+                G = G + gamma ** (i - tau) * rewards[i]
+            G = G + gamma**n * agent.q_table[next_state][next_action]
+            agent.update(
+                states[tau],
+                actions[tau],
+                G,
+            )
 
-                    q_old = agent.q_table[state][action]
+            # terminal
+            if done:
+                break
 
-                    for j in range(0, i):
-                        G = G + gamma * (i)
+            state = next_state
+            action = next_action
 
-        action = next_action
-        state = next_state
+        # tau = t - n + 1, t------index of the transition
+        # T - total transition
+        if done:
+            T = len(rewards)
+
+            start_tau = max(0, T - n)
+            for t in range(start_tau, T):
+                G = 0.0
+                for i in range(t, T):
+                    G += gamma ** (i - tau) * rewards[i]
+
+                agent.update(
+                    states[tau],
+                    actions[tau],
+                    G,
+                )
