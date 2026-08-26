@@ -2,94 +2,56 @@ import numpy as np
 from envs.cliff_world import CliffWorld
 from agents.n_step_sarsa_agent import NStepSarsaAgent
 
-# S0 --A0--> S1 --A1--> S2 --A2--> S3--A3--> Terminal
-#      R1         R2         R3        R4
-
-# update, Q(S0​,A0​) --> R1​+γR2​+(γ)^2 * R3​+(γ)^3 * Q(S3​,A3​)
 if __name__ == "__main__":
-
     max_step = 200
     epsilon = 0.2
     gamma = 0.9
     alpha = 0.1
-
     n = 3
-    tau = 0
 
     env = CliffWorld()
     state_shape = (env.rows, env.cols)
-    num_actions = env.num_acitons
+    num_actions = env.num_actions
 
     agent = NStepSarsaAgent(
-        state_shape,
-        num_actions,
-        n=n,
-        alpha=alpha,
-        gamma=gamma,
-        epsilon=epsilon,
+        state_shape, num_actions, n=n, alpha=alpha, gamma=gamma, epsilon=epsilon,
     )
 
-    # start
     state = env.reset()
     action = agent.select_action(state)
 
     states = [state]
     actions = [action]
     rewards = []
-
     done = False
 
     for step in range(max_step):
         next_state, reward, done = env.step(action)
-
         rewards.append(reward)
 
         if not done:
             next_action = agent.select_action(next_state)
-
             states.append(next_state)
             actions.append(next_action)
 
-        # update
         tau = step - n + 1
-        # 1 tau<0, done=False, no update, no action needed;
-        # 2 tau<0, done=True, flush;
-        # 3 tau>=0, done=False, update;
-        # 3 tau>=0, done=True, flush;
         if tau >= 0 and not done:
             G = 0.0
-
             for i in range(tau, tau + n):
-                G = G + gamma ** (i - tau) * rewards[i]
+                G += gamma ** (i - tau) * rewards[i]
+            G += gamma**n * agent.q_table[states[tau + n]][actions[tau + n]]
+            agent.update(states[tau], actions[tau], G)
 
-            G = G + gamma**n * agent.q_table[tau + n][tau + n]
-
-            agent.update(
-                states[tau],
-                actions[tau],
-                G,
-            )
-
-        # tau = t - n + 1, t------index of the transition
-        # T - total transition
         if done:
             T = len(rewards)
-
-            start_tau = max(0, T - n)  # to deal with tau<0, done=True, flush
+            start_tau = max(0, T - n)
             for flush_tau in range(start_tau, T):
                 G = 0.0
-                for flush_tau in range(flush_tau, T):
+                for i in range(flush_tau, T):
                     G += gamma ** (i - flush_tau) * rewards[i]
-
-                agent.update(
-                    states[flush_tau],
-                    actions[flush_tau],
-                    G,
-                )
-
+                agent.update(states[flush_tau], actions[flush_tau], G)
             break
 
-        # next state and action
         state = next_state
         action = next_action
 
