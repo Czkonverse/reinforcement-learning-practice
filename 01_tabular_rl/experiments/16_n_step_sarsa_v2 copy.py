@@ -1,15 +1,3 @@
-"""n 步 SARSA 完整重构版：多 episode 训练 + 贪心评估。
-
-相比原始 16_n_step_sarsa.py：
-- n-step 的缓冲 / 回报计算 / flush 全部封装进 NStepSarsaAgent（v2）；
-- 支持多 episode 训练，而不是单个 episode 演示；
-- 处理 max_step 截断（截断时也会 flush 剩余更新）；
-- 训练中周期性用贪心策略评估，输出统计。
-
-运行方式（在 01_tabular_rl 目录下）：
-    PYTHONPATH=. python experiments/16_n_step_sarsa_v2.py
-"""
-
 import numpy as np
 
 from agents.n_step_sarsa_agent_v2 import NStepSarsaAgent
@@ -17,7 +5,6 @@ from envs.cliff_world import CliffWorld
 
 
 def evaluate(env, agent, max_step):
-    """用贪心策略评估一个 episode，返回 (是否到达终点, 步数, 累计回报)。"""
     state = env.reset()
     total_reward = 0.0
     for step in range(max_step):
@@ -27,27 +14,29 @@ def evaluate(env, agent, max_step):
         if done:
             return True, step + 1, total_reward
         state = next_state
+
     return False, max_step, total_reward
 
 
 if __name__ == "__main__":
-    # 超参数
     num_episodes = 200
     max_step = 200
     n = 3
     epsilon = 0.2
     gamma = 0.9
     alpha = 0.1
+
     eval_every = 20
+
     np.random.seed(0)
 
     env = CliffWorld()
     agent = NStepSarsaAgent(
-        (env.rows, env.cols),
-        env.num_actions,
+        state_shape=(env.rows, env.cols),
+        num_actions=env.num_actions,
         n=n,
-        alpha=alpha,
-        gamma=gamma,
+        alpha=0.1,
+        gamma=0.9,
         epsilon=epsilon,
     )
 
@@ -59,7 +48,7 @@ if __name__ == "__main__":
 
     for episode in range(num_episodes):
         state = env.reset()
-        action = agent.begin_episode(state)
+        action = agent.begin_episode(action)
 
         total_reward = 0.0
         done = False
@@ -67,17 +56,14 @@ if __name__ == "__main__":
             next_state, reward, done = env.step(action)
             total_reward += reward
 
-            # 内部完成：缓存 transition、n-step 更新、终止时 flush
             action = agent.learn(reward, next_state, done)
 
             if done:
                 break
 
+        # out of max_step limitation
         if not done:
-            # 达到步数上限被截断：flush 剩余未更新项。
-            # 注意必须传 truncated=True：最后一跳 learn 已 bootstrap 更新过
-            # tau=T-n，end_episode 会跳过它，避免同一 transition 被更新两次。
-            agent.end_episode(truncated=True)
+            agent.end_episode()
 
         episode_rewards.append(total_reward)
         episode_steps.append(step + 1)

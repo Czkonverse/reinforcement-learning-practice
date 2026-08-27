@@ -62,7 +62,7 @@ class NStepSarsaAgent:
             next_action = None
 
         t = len(self._rewards) - 1  # 本次 transition 的下标（0 起）
-        tau = t - self.n + 1        # 本次可以更新的 transition 下标
+        tau = t - self.n + 1  # 本次可以更新的 transition 下标
 
         if not done and tau >= 0:
             self._update_at(tau, bootstrap=True)
@@ -72,14 +72,24 @@ class NStepSarsaAgent:
 
         return next_action
 
-    def end_episode(self):
-        """episode 结束（正常终止或达到步数上限截断）时调用：flush 剩余更新。
+    def end_episode(self, truncated=False):
+        """episode 结束时调用：flush 剩余未更新项。
 
-        对 tau in [max(0, T-n), T-1] 计算折扣回报到 episode 终点并更新，
+        区分两种结束方式（决定 flush 起点，避免同一 transition 被更新两次）：
+        - truncated=False（正常终止，learn 内部 done=True 时自动调用）：
+          最后一跳 learn 未做 bootstrap 更新，需 flush tau in [max(0,T-n), T-1]。
+        - truncated=True（达到步数上限被截断，最后一跳 learn 的 done=False，
+          由实验代码在循环结束后调用）：
+          最后一次 learn 已用 bootstrap 更新过 tau=T-n（bootstrap 到 S_T, A_T），
+          这里只需 flush tau in [max(0,T-n+1), T-1]，跳过 T-n 避免重复更新。
         之后清空缓冲等待下一个 episode。
         """
         T = len(self._rewards)
-        for flush_tau in range(max(0, T - self.n), T):
+        if truncated:
+            start = max(0, T - self.n + 1)
+        else:
+            start = max(0, T - self.n)
+        for flush_tau in range(start, T):
             self._update_at(flush_tau, bootstrap=False)
 
         self._states = []
@@ -122,8 +132,7 @@ class NStepSarsaAgent:
             end = tau + self.n
             G = self._discounted_return(tau, end)
             G += (
-                self.gamma ** self.n
-                * self.q_table[self._states[end]][self._actions[end]]
+                self.gamma**self.n * self.q_table[self._states[end]][self._actions[end]]
             )
         else:
             end = len(self._rewards)
