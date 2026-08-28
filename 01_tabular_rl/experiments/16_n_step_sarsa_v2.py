@@ -5,9 +5,6 @@
 - 支持多 episode 训练，而不是单个 episode 演示；
 - 处理 max_step 截断（截断时也会 flush 剩余更新）；
 - 训练中周期性用贪心策略评估，输出统计。
-
-运行方式（在 01_tabular_rl 目录下）：
-    PYTHONPATH=. python experiments/16_n_step_sarsa_v2.py
 """
 
 import numpy as np
