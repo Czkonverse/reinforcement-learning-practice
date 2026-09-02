@@ -34,7 +34,10 @@ class NStepSarsaAgent:
         self._rewards = []
 
     def begin_episode(self, state):
-        pass
+        self.states = [state]
+        self.actions = [self.select_action(state)]
+        self.rewards = []
+        return self.actions[0]
 
     def learn(
         self,
