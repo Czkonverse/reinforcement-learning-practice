@@ -55,7 +55,10 @@ class NStepSarsaAgent:
         best_actions = np.flatnonzero(q_values == np.max(q_values))
         return np.random.choice(best_actions)
 
-    def update(self, state, action, target):
-        old_q = self.q_table[state][action]
-
-        self.q_table[state][action] = old_q + self.alpha * (target - old_q)
+    def end_episode(self, state):
+        if state == "terminal":
+            pass
+        elif state == "truncated":
+            pass
+        else:
+            raise ValueError(f"Illegal state: : {state}")
