@@ -34,6 +34,8 @@ class NStepSarsaAgent:
         self._rewards = []
 
     def begin_episode(self, state):
+        #
+
         self.states = [state]
         self.actions = [self.select_action(state)]
         self.rewards = []
@@ -56,9 +58,15 @@ class NStepSarsaAgent:
         return np.random.choice(best_actions)
 
     def end_episode(self, state):
+        T = len(self.rewards)
+
         if state == "terminal":
             pass
         elif state == "truncated":
             pass
         else:
             raise ValueError(f"Illegal state: : {state}")
+
+    def _flush_truncated(self):
+        T = len(self.rewards)
+        pass
