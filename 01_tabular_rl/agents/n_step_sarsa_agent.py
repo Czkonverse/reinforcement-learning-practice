@@ -36,10 +36,10 @@ class NStepSarsaAgent:
     def begin_episode(self, state):
         #
 
-        self.states = [state]
-        self.actions = [self.select_action(state)]
-        self.rewards = []
-        return self.actions[0]
+        self._states = [state]
+        self._actions = [self.select_action(state)]
+        self._rewards = []
+        return self._actions[0]
 
     def learn(
         self,
@@ -68,5 +68,53 @@ class NStepSarsaAgent:
             raise ValueError(f"Illegal state: : {state}")
 
     def _flush_truncated(self):
-        T = len(self.rewards)
-        pass
+        T = len(self._rewards)
+
+        first_tau = max(0, T - self.n + 1)
+
+        for flush_tau in range(first_tau, T):
+
+            G = 0
+            for i in range(flush_tau, T):
+                G += self.gamma ** (i - flush_tau) * self._rewards[i]
+
+            final_state = self._states[T]
+            final_action = self._actions[T]
+
+            G += self.gamma ** (T - flush_tau) * self.q_table[final_state][final_action]
+
+            state = self.states[flush_tau]
+            action = self.actions[flush_tau]
+
+            old_q = self.q_table[state][action]
+
+            self.q_table[state][action] = old_q + self.alpha * (G - old_q)
+
+    def _flush_truncated(self):
+        # R0 = R1 + gamma ** 1 * R2 + gamma ** 2 * R3 + gamma ** 3 * Q(S3, A3)
+
+        T = len(self._rewards)
+
+        first_tau = max(0, T - self.n + 1)
+
+        for flush_tau in range(first_tau, T):
+
+            G = 0.0
+
+            # reward
+            for i in range(flush_tau, T):
+                G += self.gamma ** (i - flush_tau) * self._rewards[i]
+
+            # bootstrap - Q(S_T, A_T)
+            final_state = self._states[T]
+            final_action = self._actions[T]
+
+            G += self.gamma ** (T - flush_tau) * self.q_table[final_state][final_action]
+
+            # update Q(S_tau, A_tau)
+            state = self._states[flush_tau]
+            action = self._actions[flush_tau]
+
+            old_q = self.q_table[state][action]
+
+            self.q_table[state][action] = old_q + self.alpha * (G - old_q)
