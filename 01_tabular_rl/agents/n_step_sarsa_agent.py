@@ -103,4 +103,8 @@ class NStepSarsaAgent:
         first_tau = max(0, T - self.n + 1)
 
         for flush_tau in range(flush_tau, T):
-            pass
+            G = 0.0
+
+            # reward
+            for i in range(flush_tau, T):
+                G += self.gamma ** (i - flush_tau) * self._rewards[i]
