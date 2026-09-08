@@ -41,12 +41,12 @@ class NStepSarsaAgent:
         self._rewards = []
         return self._actions[0]
 
-    def learn(
-        self,
-        reward,
-        next_state,
-    ):
-        pass
+    def learn(self, reward, next_state, terminal, truncated):
+        self._rewards.append(reward)
+        if terminal:
+            pass
+        elif truncated:
+            pass
 
     def select_action(self, state, training=True):
         # epsilon-greedy
@@ -102,9 +102,17 @@ class NStepSarsaAgent:
 
         first_tau = max(0, T - self.n + 1)
 
-        for flush_tau in range(flush_tau, T):
+        for flush_tau in range(first_tau, T):
             G = 0.0
 
             # reward
             for i in range(flush_tau, T):
                 G += self.gamma ** (i - flush_tau) * self._rewards[i]
+
+            # update Q(S_tau, A_tau)
+            state = self._states[flush_tau]
+            action = self._actions[flush_tau]
+
+            old_q = self.q_table[state][action]
+
+            self.q_table[state][action] = old_q + self.alpha * (G - old_q)
