@@ -41,12 +41,47 @@ class NStepSarsaAgent:
         self._rewards = []
         return self._actions[0]
 
-    def learn(self, reward, next_state, terminal, truncated):
+    def step(self, reward, next_state, terminal, truncated):
+
         self._rewards.append(reward)
+        self._states.append(next_state)
+
         if terminal:
-            pass
-        elif truncated:
-            pass
+            return None
+
+        next_action = self.select_action(next_state)
+
+        self._actions.append(next_action)
+
+        if truncated:
+            return next_action
+
+        # normal case
+        t = len(self._rewards) - 1
+
+        tau = t - self.n + 1
+
+        if tau >= 0:
+            G = 0.0
+
+            for i in range(tau, tau + self.n):
+                G += self.gamma ** (i - tau) * self._rewards[i]
+
+        # bootstrap : + gamma^n Q(S_{tau+n}, A_{tau+n})
+        bootstrap_state = self._states[tau + self.n]
+        bootstrap_action = self._actions[tau + self.n]
+
+        G += self.gamma**self.n * self.q_table[bootstrap_state][bootstrap_action]
+
+        # update Q(S_tau, A_tau)
+        state = self._states[tau]
+        action = self._actions[tau]
+
+        old_q = self.q_table[state][action]
+
+        self.q_table[state][action] = old_q + self.alpha * (G - old_q)
+
+        return next_action
 
     def select_action(self, state, training=True):
         # epsilon-greedy
@@ -58,7 +93,7 @@ class NStepSarsaAgent:
         return np.random.choice(best_actions)
 
     def end_episode(self, state):
-        T = len(self.rewards)
+        T = len(self._rewards)
 
         if state == "terminal":
             pass
