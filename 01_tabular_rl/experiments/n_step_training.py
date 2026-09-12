@@ -19,3 +19,19 @@ if __name__ == "__main__":
         gamma=gamma,
         epsilon=epsilon,
     )
+
+    episode_rewards = []
+    episode_steps = []
+    episode_success = []
+    eval_rewards = []
+    eval_success = []
+
+    for episode in range(num_episodes):
+        state = env.reset()
+        action = agent.start_episode(state)
+
+        total_reward = 0.0
+        done = False
+        for step in range(max_step):
+            next_state, reward, done = env.step(action)
+            total_reward += reward
