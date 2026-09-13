@@ -23,8 +23,6 @@ if __name__ == "__main__":
     episode_rewards = []
     episode_steps = []
     episode_success = []
-    eval_rewards = []
-    eval_success = []
 
     for episode in range(num_episodes):
         state = env.reset()
@@ -35,3 +33,11 @@ if __name__ == "__main__":
         for step in range(max_step):
             next_state, reward, done = env.step(action)
             total_reward += reward
+
+            action = agent.step(reward, next_state, done)
+
+            if done:
+                break
+
+        if not done:
+            agent.end_episode()

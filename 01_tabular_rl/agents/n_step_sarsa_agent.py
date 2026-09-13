@@ -34,7 +34,6 @@ class NStepSarsaAgent:
         self._rewards = []
 
     def begin_episode(self, state):
-        #
 
         self._states = [state]
         self._actions = [self.select_action(state)]
@@ -47,107 +46,107 @@ class NStepSarsaAgent:
         self._states.append(next_state)
 
         if terminal:
+            # No action follows a terminal state; the tail is flushed by
+            # end_episode("terminal").
             return None
 
         next_action = self.select_action(next_state)
-
         self._actions.append(next_action)
 
         if truncated:
+            # Max-step limit hit: this transition and the rest of the tail are
+            # flushed with bootstrapping by end_episode("truncated").
             return next_action
 
-        # normal case
+        # normal case: update transition tau = t - n + 1 if it has n rewards
         t = len(self._rewards) - 1
-
         tau = t - self.n + 1
 
         if tau >= 0:
-            G = 0.0
+            G = self._discounted_rewards(tau, tau + self.n)
 
-            for i in range(tau, tau + self.n):
-                G += self.gamma ** (i - tau) * self._rewards[i]
+            # bootstrap: + gamma^n * Q(S_{tau+n}, A_{tau+n})
+            bootstrap_state = self._states[tau + self.n]
+            bootstrap_action = self._actions[tau + self.n]
+            G += self.gamma**self.n * self.q_table[bootstrap_state][bootstrap_action]
 
-        # bootstrap : + gamma^n Q(S_{tau+n}, A_{tau+n})
-        bootstrap_state = self._states[tau + self.n]
-        bootstrap_action = self._actions[tau + self.n]
-
-        G += self.gamma**self.n * self.q_table[bootstrap_state][bootstrap_action]
-
-        # update Q(S_tau, A_tau)
-        state = self._states[tau]
-        action = self._actions[tau]
-
-        old_q = self.q_table[state][action]
-
-        self.q_table[state][action] = old_q + self.alpha * (G - old_q)
+            self._update_Q(tau, G)
 
         return next_action
 
     def select_action(self, state, training=True):
         # epsilon-greedy
-        if training and np.random.random() < self.epsilon:
-            return np.random.randint(self.num_actions)
+        if training and self.rng.random() < self.epsilon:
+            return int(self.rng.integers(self.num_actions))
 
         q_values = self.q_table[state]
         best_actions = np.flatnonzero(q_values == np.max(q_values))
-        return np.random.choice(best_actions)
+        return int(self.rng.choice(best_actions))
 
-    def end_episode(self, state):
-        T = len(self._rewards)
+    def end_episode(self, reason):
+        """Finish the current episode by flushing the remaining tail transitions.
 
-        if state == "terminal":
-            pass
-        elif state == "truncated":
-            pass
+        reason == "terminal"  : the episode truly ended (e.g. goal reached);
+                                the tail uses the pure discounted return.
+        reason == "truncated" : the max-step limit was hit, which is NOT a real
+                                terminal, so the tail bootstraps to Q(S_T, A_T).
+        """
+        if reason == "terminal":
+            self._flush_terminal()
+        elif reason == "truncated":
+            self._flush_truncated()
         else:
-            raise ValueError(f"Illegal state: : {state}")
+            raise ValueError(f"Illegal reason: {reason}")
 
-    def _flush_truncated(self):
-        # R0 = R1 + gamma ** 1 * R2 + gamma ** 2 * R3 + gamma ** 3 * Q(S3, A3)
+        # clear the buffers, ready for the next episode
+        self._states = []
+        self._actions = []
+        self._rewards = []
 
-        T = len(self._rewards)
+    def _discounted_rewards(self, start, end):
+        """Sum of gamma^(i-start) * rewards[i] for i in [start, end).
 
-        first_tau = max(0, T - self.n + 1)
+        rewards[i] is the reward for transition i (i.e. R_{i+1} of the book).
+        """
+        G = 0.0
+        for i in range(start, end):
+            G += self.gamma ** (i - start) * self._rewards[i]
+        return G
 
-        for flush_tau in range(first_tau, T):
-
-            G = 0.0
-
-            # reward
-            for i in range(flush_tau, T):
-                G += self.gamma ** (i - flush_tau) * self._rewards[i]
-
-            # bootstrap - Q(S_T, A_T)
-            final_state = self._states[T]
-            final_action = self._actions[T]
-
-            G += self.gamma ** (T - flush_tau) * self.q_table[final_state][final_action]
-
-            # update Q(S_tau, A_tau)
-            state = self._states[flush_tau]
-            action = self._actions[flush_tau]
-
-            old_q = self.q_table[state][action]
-
-            self.q_table[state][action] = old_q + self.alpha * (G - old_q)
+    def _update_Q(self, tau, target):
+        """Q(S_tau, A_tau) <- Q(S_tau, A_tau) + alpha * (target - Q(S_tau, A_tau))."""
+        state = self._states[tau]
+        action = self._actions[tau]
+        old_q = self.q_table[state][action]
+        self.q_table[state][action] = old_q + self.alpha * (target - old_q)
 
     def _flush_terminal(self):
+        """Terminal tail: pure discounted return, no bootstrap (V(terminal)=0).
 
+        Example (n=3):
+            Q(S0,A0) <- R1 + gamma R2 + gamma^2 R3   (episode ends after R3)
+        """
         T = len(self._rewards)
+        first_tau = max(0, T - self.n)
+        for tau in range(first_tau, T):
+            G = self._discounted_rewards(tau, T)
+            self._update_Q(tau, G)
 
-        first_tau = max(0, T - self.n + 1)
+    def _flush_truncated(self):
+        """Truncated tail: like the terminal case, but the last state is not
+        absorbing, so we bootstrap the tail to Q(S_T, A_T):
 
-        for flush_tau in range(first_tau, T):
-            G = 0.0
+            G_tau = R_{tau+1} + ... + gamma^{T-tau-1} R_T
+                    + gamma^{T-tau} Q(S_T, A_T)
 
-            # reward
-            for i in range(flush_tau, T):
-                G += self.gamma ** (i - flush_tau) * self._rewards[i]
-
-            # update Q(S_tau, A_tau)
-            state = self._states[flush_tau]
-            action = self._actions[flush_tau]
-
-            old_q = self.q_table[state][action]
-
-            self.q_table[state][action] = old_q + self.alpha * (G - old_q)
+        Example (n=3, T=3):
+            Q(S0,A0) <- R1 + gamma R2 + gamma^2 R3 + gamma^3 Q(S3, A3)
+        """
+        T = len(self._rewards)
+        first_tau = max(0, T - self.n)
+        final_state = self._states[T]
+        final_action = self._actions[T]
+        for tau in range(first_tau, T):
+            G = self._discounted_rewards(tau, T)
+            G += self.gamma ** (T - tau) * self.q_table[final_state][final_action]
+            self._update_Q(tau, G)
